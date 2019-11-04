@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickStroke</title>
+
+    <link rel="stylesheet" href="styles/bootstrap-4.3.1-dist/css/bootstrap.css">
+    <!-- <link rel="stylesheet" href="styles/editor-1.css" type="text/css"> -->
+    <link rel="stylesheet" href="styles/MainPageStyle.css">
+
+    <script src="styles/jquery-3.4.1.min.js"></script>
+    <script src="styles/bootstrap-4.3.1-dist/js/bootstrap.min.js"></script>
+
+    <script>
+        function stripHtml(html)
+        {
+            var tmp = document.createElement("DIV");
+            tmp.innerHTML = html;
+            return tmp.textContent || tmp.innerText || "";
+        }
+
+        //a class describing a bufferSource
+        class Audio{
+            constructor(context, buffer = null){
+                this.context = context;
+                this.source = this.context.createBufferSource();
+                this.buffer = buffer;
+                this.connected = false; //track whether the source is connected to a destination
+                this.started = false;
+            }
+
+            loadSound(audioURL) {
+                // set the audio file's URL
+                // var audioURL='resources/Faded.mp3';
+                //creating a new request
+                var self = this;
+                var request = new XMLHttpRequest();
+                request.open("GET",audioURL,true);
+                request.responseType= 'arraybuffer';
+                request.onload = function(){
+                    //take the audio from http request and decode it in an audio buffer
+                    //do not use this.context, because in this situation this would refer to the window
+                    self.context.decodeAudioData(request.response, function(buffer){
+                        self.buffer = buffer;
+                        console.log(self.buffer);
+                    });
+                };
+                request.send();
+            }
+
+            play(time = 0) {
+                if (!this.connected){
+                    if (this.buffer){
+                        //if hasn't connected to a buffer
+                        if (!this.source.buffer){
+                            this.source.buffer = this.buffer;
+                            this.source.start(0, time);
+                            this.started = true;
+                        }
+                        //start playing
+                        this.source.connect(this.context.destination);  // added
+                        this.connected = true;
+                    }
+                    else{
+                        alert("No audio buffer to play!");
+                    }
+                }
+            }
+
+            pause(){
+                if (this.connected){
+                    this.source.disconnect(this.context.destination);
+                    this.connected = false;
+                }
+            }
+
+            resetSource(){
+                if (this.started){
+                    if (this.connected){
+                        this.source.disconnect(this.context.destination); //disconnect
+                    }
+                    this.source.stop(); //stop
+                    this.source.buffer = null;
+                    this.connected = false;
+                    this.source = this.context.createBufferSource(); //unreference old source and create new source
+                }
+            }
+        }
+
+
+        // window.addEventListener('load', init);
+        // function init() {
+        //     try {
+        //
+        //     } catch(e) {
+        //         alert("Your browser doesn't support Web Audio API");
+        //     }
+        //     // playSound();  // comment here
+        // }
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        audio = new Audio(new window.AudioContext());
+        audio.loadSound('resources/Faded.mp3');
+
+
+    </script>
+</head>
+
+
+<body style="background-color: #32353b;color:#ccd3db;">
+
+<div class="container" style="margin-top:100px;">
+   <!------------------------------------ introduction ------------------------------------>
+    <div style="background: rgba(20,20,20,0.3);padding:20px;">
+        <h3 style="text-align: center;">简介</h3>
+        <div style="text-align: left;text-indent:2em;">
+            <p>这是一个模仿音游Cytus的游戏，既可以用键盘来玩，也可以在触摸屏上点按，不过如果使用的是键盘，那么难度会高很多。画面中共有8个竖直区域，每个区域都会出现圆盘，并且游戏当中有一条横线上下来回扫动，当横线与圆盘接触时，如果使用的是键盘，那么根据圆盘所处的区域，玩家需要按下相应的按键，对应于8个竖直区域的按键分别为（从左至右）：A, S, D, F, J, K, L, 冒号/分号，按下Y可以在圆盘上显示按键提示；如果使用的是触摸屏，那么只需在横线与圆盘相交时点击圆盘即可。画面顶部的三个数字分别为目前的最大连击数、连击数和分数。</p>
+            <p>游戏的进度条下方有一个编辑区，可以显示一个列表，列表中的每个子列表的第一个数字为横线穿过该圆盘的时间，第二个数字对应于圆盘所处的列，当拖动进度条的时被横线接触到的圆相对应的数据会被高亮。可以通过更改这个列表来增减圆盘或者更改其顺序，更改完后需要点击更新按键（快捷键：ctrl + enter）。</p>
+            <p>键盘快捷键:</p>
+            <p>P: 暂停，N: 重新开始，Y: 显示/隐藏按键提示，ctrl + enter：更新游戏数据(对编辑区生效)</p>
+            <p>A, S, D, F, J, K, L, 冒号/分号: 8个竖直区域的点按</p>
+            <p>以下难度描述是相对键盘而言，对于触摸屏而言难度降低两个级别。</p>
+        </div>
+    </div>
+
+    <!------------------------------------ music ------------------------------------>
+<!--    <audio preload="auto" id="music">-->
+<!--        <source src="resources/Faded.mp3" type="audio/ogg">-->
+<!--        Your browser does not support the audio element.-->
+<!--    </audio>-->
+<!--    <audio id="mirrowind">-->
+<!--        <source src="resources/Call_of_Magic.mp3" type="audio/mpeg">-->
+<!--        Your browser does not support the audio element.-->
+<!--    </audio>-->
+<!--    <script>-->
+<!--        var audio = document.getElementById("music");-->
+<!--    </script>-->
+
+    <!------------------------------------ game controls ------------------------------------>
+    <div style="text-align: center;font-size:20px;">
+        <div class="form-check form-check-inline" style="margin-top:30px;">
+            <input class="form-check-input" type="radio" name="levels" id="radios1" value="simple" onchange="change_level('simple')">
+            <label class="form-check-label" for="radios1">简单</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="levels" id="radios2" value="ordinary" onchange="change_level('ordinary')">
+            <label class="form-check-label" for="radios2">普通</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="levels" id="radios3" value="hard" onchange="change_level('hard')">
+            <label class="form-check-label" for="radios3">困难</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="levels" id="radios4" value="nightmare" onchange="change_level('nightmare')">
+            <label class="form-check-label" for="radios4">噩梦</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="levels" id="radios6" value="hell" onchange="change_level('hell')">
+            <label class="form-check-label" for="radios6">地狱</label>
+        </div>
+        <p style="margin-top:20px;">当前难度：<span id="current-level" style="color:darkgray;">默认</span></p>
+    </div>
+
+    <!------------------------------------ game panel ------------------------------------>
+    <div style="background: rgba(20,20,20,0.3); margin-top:20px;">
+        <div class="row" style="margin-top:5px;">
+            <div class="col-4" style="font-size: 25px;color:darkgray;text-align: center;"><span id="max-combo">0</span></div>
+            <div class="col-4" style="font-size: 30px;color:orange;text-align: center;"><span id="combo">0</span></div>
+            <div class="col-4" style="font-size: 25px;color:dodgerblue;text-align: center;"><span id="score">0</span></div>
+        </div>
+    <!--    <div style="width:800px;height:50px; margin-left:50%;transform: translateX(-50%);overflow: scroll;overflow-wrap: normal;">-->
+    <!--        <div style="display:inline-block;width:100px;text-align: center;">A</div>-->
+    <!--        <div style="display:inline-block;width:100px;text-align: center;">S</div>-->
+    <!--        <div style="display:inline-block;width:100px;text-align: center;">D</div>-->
+    <!--        <div style="display:inline-block;width:100px;text-align: center;">F</div>-->
+    <!--        <div style="display:inline-block;width:100px;text-align: center;">J</div>-->
+    <!--        <div style="display:inline-block;width:100px;text-align: center;">K</div>-->
+    <!--        <div style="display:inline-block;width:100px;text-align: center;">L</div>-->
+    <!--    </div>-->
+
+        <canvas id="canvas_CytusFake" width="800" height="500" style="background: black;margin-bottom:20px;margin-left: 50%;transform: translateX(-50%);"></canvas>
+
+        <div class="row">
+            <div class="col-2">
+                <button id="btn-start" type="button" class="btn btn-primary" style="width:100px;margin-left: 50%;transform: translateX(-50%);font-size:15px;">START</button>
+            </div>
+            <div class="col-8">
+            <input type="range" min="1" max="1000" value="0" class="slider" id="slider">
+            </div>
+            <div class="col-2">
+                <p id="time_indication" style="text-align: center;font-size: 24px;color:dodgerblue;">0</p>
+            </div>
+        </div>
+    </div>
+
+        <button id="btn-restart" type="button" class="btn btn-primary" style="width:100px;font-size:15px;margin-left: 50%;transform:translateX(-50%);margin-top:10px;margin-bottom:20px;">RESTART</button>
+    <button type="button" id ="btn-cheat" onclick="cheat()" class="btn btn-dark" style="margin-left: 50%;transform: translateX(-50%);">turn on cheat mode</button>
+
+    <!------------------------------------ debug panel ------------------------------------>
+    <div id="div-cheat" style="display:none;background: rgba(20,20,20,0.3); margin-top:20px;padding:10px;">
+        <div contenteditable="true" id="timeline" style="padding:15px;width:80%;height:200px;overflow: scroll;background:rgba(20,20,20,0.3);margin-top:30px;margin-left: 50%;transform: translateX(-50%);"></div>
+
+
+        <div style="margin-bottom: 20px;margin-top:20px;">
+            <button type="button" onclick="add()" class="btn btn-primary" style="width:80px;margin-left: 50%;transform: translateX(-50%);margin-bottom:20px;">UPDATE</button>
+        </div>
+
+
+
+
+
+        <table class="table" style="text-align: center;">
+            <thead>
+            <tr>
+                <th class="table-dark" colspan="8">Debug Parameters</th>
+            </tr>
+            <tr class="table-secondary">
+                <th>BL-posY</th>
+                <th>BL-posY-calc</th>
+                <th>BL-v</th>
+                <th>BL-v-calc</th>
+                <th>#circ</th>
+                <th>#circ_alive</th>
+                <th>#circ_dead</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr class="table-secondary">
+                <th><span id="baseline-posY"></span></th>
+                <th><span id="baseline-posY-calc"></span></th>
+                <th><span id="baseline-v"></span></th>
+                <th><span id="baseline-v-calc"></span></th>
+                <th><span id="num_circles"></span></th>
+                <th><span id="num_circles_alive"></span></th>
+                <th><span id="num_circles_dead"></span></th>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+
+
+    <!------------------------------------ scripts ------------------------------------>
+    <script id="game_js" src="js/game.js"></script>
+<!--    <script type="text/javascript">-->
+<!--        var jsLink = "js/game.js?version=" + 1;-->
+<!--        document.getElementById("game_js").src = jsLink;-->
+<!--    </script>-->
+
+</div>
+
+
+
+</body>
+</html>
